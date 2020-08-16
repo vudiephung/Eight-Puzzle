@@ -11,19 +11,12 @@ class Node(object):
             self.puzzle.append(el)
 
     # Copy from a to b
-    def copy_puzzle(self, old, new):
+    def copy_puzzle(self, old, new, getBlank = True):
         for el in old:
-            new.append(el)
-
-    def goal_test(self):
-        isGoal = True
-        temp = self.puzzle[0]
-        for i in range(1, len(self.puzzle)):
-            if (temp > self.puzzle[i]):
-                isGoal = False
-                break
-            temp = self.puzzle[i]
-        return isGoal
+            if el == 0 and not getBlank:
+                continue
+            else:
+                new.append(el)
 
     def move_up(self, index):
         if index - self.col >= 0:
@@ -93,9 +86,27 @@ class Node(object):
             self.move_up(self.blank_index)
             self.move_down(self.blank_index)
 
-
 class UniformSearch:
-    def BFS(self, root):
+    def parity_check(self, root, goal):
+        parities = 0
+
+        tiles = []
+        newGoal = []
+
+        root.copy_puzzle(root.puzzle, tiles, False)
+        root.copy_puzzle(goal, newGoal, False)
+
+        for i in range(len(tiles) - 1):
+            for j in range(i + 1, len(tiles)):
+                diffInitial = tiles[i] - tiles[j]
+                diffGoal = newGoal[i] - newGoal[j]
+                if diffInitial * diffGoal < 0:
+                    parities += 1
+
+        print("parities: ", parities)
+        return parities % 2 == 0
+
+    def BFS(self, root, goal):
         pathToSolution = []
         openList = []
         closedList = []
@@ -107,12 +118,44 @@ class UniformSearch:
         while openList and not foundGoal:
             currentNode = openList[0]
             closedList.append(currentNode)
+
+            # print(len(openList))
             openList.pop(0)
 
             currentNode.expand_move()
 
             for childNode in currentNode.childrens:
-                if childNode.goal_test():
+                if childNode.puzzle == goal:
+                    print("Result found!")
+                    foundGoal = True
+                    self.path_trace(pathToSolution, childNode)
+                    break
+                if not self.existed_puzzle(childNode, openList) and not self.existed_puzzle(childNode, closedList):
+                    openList.append(childNode)
+
+        return pathToSolution
+
+    def DFS(self, root, goal):
+        pathToSolution = []
+        openList = []
+        closedList = []
+
+        openList.append(root)
+        foundGoal = False
+
+        print("\nSearching for the solution via DFS ... ")
+        while openList and not foundGoal:
+            currentNode = openList[-1]
+            closedList.append(currentNode)
+
+            # print(len(openList))
+            openList.pop()
+
+            currentNode.expand_move()
+
+            for childNode in currentNode.childrens:
+                # if childNode.goal_test(childNode.puzzle):
+                if childNode.puzzle == goal:
                     print("Result found!")
                     foundGoal = True
                     self.path_trace(pathToSolution, childNode)
@@ -139,24 +182,21 @@ class UniformSearch:
         return isContain
 
 if __name__ == "__main__":
-    puzzle = [
-        1, 2, 4,
-        3, 0, 5,
-        7, 6, 8
-    ]
-
-    goal = [
-        1, 0, 4, 3, 2, 5, 6, 7, 8
-    ]
+    puzzle = [7,2,4,5,0,6,8,1,3]
+    goal = [1,2,3,4,5,6,7,8,0]
 
     root = Node(puzzle)
-
     ui = UniformSearch()
-    solution = ui.BFS(root)
 
+    if ui.parity_check(root, goal):
+        solution = ui.DFS(root, goal)
+    else:
+        solution = []
     if solution:
         solution.reverse()
         for node in solution:
             node.print_puzzle()
             if solution.index(node) < len(solution) - 1:
                 print();
+    else:
+        print("Cannot find the solution")
